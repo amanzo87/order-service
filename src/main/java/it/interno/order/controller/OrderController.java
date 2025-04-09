@@ -23,10 +23,13 @@ public class OrderController {
     @PostMapping(path = "/insert")
     public ResponseEntity<ResponseDto> inserimentoNuovoOrdine(@RequestBody OrderDto orderDto) {
         OrderDto ordine = orderService.inserimentoOrdine(orderDto);
-        ResponseDto<OrderDto> response = ResponseDto.<OrderDto>builder()
-                .code(HttpStatus.OK.value())
-                .body(ordine)
-                .build();
+        ResponseDto<OrderDto> response = new ResponseDto<>(
+                HttpStatus.OK.value(), ordine, null, null
+        );
+//        ResponseDto<OrderDto> response = ResponseDto.<OrderDto>builder()
+//                .code(HttpStatus.OK.value())
+//                .body(ordine)
+//                .build();
         return ResponseEntity.ok(response);
     }
 
