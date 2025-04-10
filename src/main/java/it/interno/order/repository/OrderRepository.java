@@ -2,6 +2,7 @@ package it.interno.order.repository;
 
 import it.interno.order.entity.Order;
 import it.interno.order.entity.key.OrderKey;
+import jakarta.transaction.Transactional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -16,6 +17,7 @@ public interface OrderRepository extends JpaRepository<Order, OrderKey> {
     Integer getMaxOrder() ;
 
     @Modifying
+    @Transactional
     @Query(value =
             "UPDATE SHOP1.CUSTOMER_ORDER " +
             "SET TS_CANCELLAZIONE = ?2 , " +

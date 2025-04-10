@@ -1,6 +1,7 @@
 package it.interno.order.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import it.interno.common.lib.StatoOrdine;
 import it.interno.common.lib.model.OrderDto;
 import it.interno.order.dto.ResponseDto;
 import it.interno.order.service.OrderService;
@@ -22,14 +23,17 @@ public class OrderController {
     @Operation(summary = "Inserimento Ordine")
     @PostMapping(path = "/insert")
     public ResponseEntity<ResponseDto> inserimentoNuovoOrdine(@RequestBody OrderDto orderDto) {
+
         OrderDto ordine = orderService.inserimentoOrdine(orderDto);
-        ResponseDto<OrderDto> response = new ResponseDto<>(
-                HttpStatus.OK.value(), ordine, null, null
-        );
-//        ResponseDto<OrderDto> response = ResponseDto.<OrderDto>builder()
-//                .code(HttpStatus.OK.value())
-//                .body(ordine)
-//                .build();
+
+        ResponseDto<OrderDto> response = null;
+
+        if(StatoOrdine.ORDINE_CONFERMATO.getCodice() == ordine.getIdStato()) {
+            response = new ResponseDto<>(HttpStatus.OK.value(), ordine, null, null);
+        }else if(StatoOrdine.ORDINE_ANNULLATO.getCodice() == ordine.getIdStato()) {
+            response = new ResponseDto<>(HttpStatus.FAILED_DEPENDENCY.value(), null, "Errore nella richiesta di creazione dell'ordine", null);
+        }
+
         return ResponseEntity.ok(response);
     }
 
