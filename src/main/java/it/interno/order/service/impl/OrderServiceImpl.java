@@ -6,6 +6,7 @@ import it.interno.common.lib.model.OrderDto;
 import it.interno.common.lib.util.Utility;
 import it.interno.order.client.InventoryClient;
 import it.interno.order.client.PaymentClient;
+import it.interno.order.client.ShippingClient;
 import it.interno.order.dto.ResponseDto;
 import it.interno.order.entity.Order;
 import it.interno.order.entity.key.OrderKey;
@@ -38,6 +39,12 @@ public class OrderServiceImpl implements OrderService {
     @Autowired
     private PaymentClient paymentClient;
 
+    @Autowired
+    private ShippingClient shippingClient;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @Override
     //@Transactional
     public OrderDto inserimentoOrdine(OrderDto orderDto) {
@@ -50,8 +57,6 @@ public class OrderServiceImpl implements OrderService {
 
             ResponseEntity<ResponseDto<OrderDto>> inventoryResponse =
                     inventoryClient.verificaDisponibilitaProdotti(dto.getIdUteIns(), dto);
-
-            ObjectMapper objectMapper = new ObjectMapper();
 
             if(inventoryResponse.getBody() != null &&
                     HttpStatus.OK.value() == inventoryResponse.getBody().getCode()) {
@@ -67,28 +72,35 @@ public class OrderServiceImpl implements OrderService {
                             paymentResponse.getBody().getBody(), OrderDto.class);
 
                     if(paymentResponseDto.getPagamentoEffettuato()) {
-                        dto.setIdStato(StatoOrdine.ORDINE_CONFERMATO.getCodice());
+
+                        ResponseEntity<ResponseDto<OrderDto>> shippingResponse =
+                                shippingClient.generaSpedizione(paymentResponseDto);
+
+                        if(shippingResponse.getBody() != null && shippingResponse.getBody().getBody() != null) {
+                            OrderDto shippingResponseDto = objectMapper.convertValue(
+                                    shippingResponse.getBody().getBody(), OrderDto.class);
+                            dto.setIdStato(StatoOrdine.ORDINE_CONFERMATO.getCodice());
+                        }else{
+
+                            // CallBack Inventory
+                            callBackInventory(paymentResponseDto);
+
+                            // CallBack Payment
+                            callBackPayment(paymentResponseDto);
+
+                            dto.setIdStato(StatoOrdine.ORDINE_ANNULLATO.getCodice());
+                        }
                     }else{
                         dto.setIdStato(StatoOrdine.ORDINE_ANNULLATO.getCodice());
 
-                        ResponseEntity<ResponseDto<String>> inventoryCallbackResponse =
-                                inventoryClient.fallimentoOrdine(paymentResponseDto.getIdUteIns(), paymentResponseDto);
-
-                        if(inventoryCallbackResponse.getBody() != null) {
-                            if(!"CANCELLAZIONE EFFETTUATA".equals(objectMapper.convertValue(
-                                    inventoryCallbackResponse .getBody().getBody(), String.class))) {
-                                System.out.println("PROBLEMA CON CALLBACK INVENTORY - ALIMENTARE TABELLA XXX");
-                            }
-                        }
+                        // CallBack Inventory
+                        callBackInventory(paymentResponseDto);
                     }
                 }else{
                     dto.setIdStato(StatoOrdine.ORDINE_ANNULLATO.getCodice());
                 }
             }else{
                 dto.setIdStato(StatoOrdine.ORDINE_ANNULLATO.getCodice());
-//                if(HttpStatus.FAILED_DEPENDENCY.value() == inventoryResponse.getBody().getCode()) {
-//
-//                }
             }
 
             aggiornamentoOrdine(dto);
@@ -99,6 +111,30 @@ public class OrderServiceImpl implements OrderService {
         }
 
         return dto;
+    }
+
+    private void callBackInventory(OrderDto paymentResponseDto) {
+        ResponseEntity<ResponseDto<String>> inventoryCallbackResponse =
+                inventoryClient.fallimentoOrdine(paymentResponseDto.getIdUteIns(), paymentResponseDto);
+
+        if(inventoryCallbackResponse.getBody() != null) {
+            if(!"CANCELLAZIONE EFFETTUATA".equals(objectMapper.convertValue(
+                    inventoryCallbackResponse .getBody().getBody(), String.class))) {
+                System.out.println("PROBLEMA CON CALLBACK INVENTORY - ALIMENTARE TABELLA XXX");
+            }
+        }
+    }
+
+    private void callBackPayment(OrderDto orderDto) {
+        ResponseEntity<ResponseDto<String>> paymentCallbackResponse =
+                paymentClient.fallimentoOrdine(orderDto);
+
+        if(paymentCallbackResponse.getBody() != null) {
+            if(!"CANCELLAZIONE EFFETTUATA".equals(objectMapper.convertValue(
+                    paymentCallbackResponse .getBody().getBody(), String.class))) {
+                System.out.println("PROBLEMA CON CALLBACK PAYMENT - ALIMENTARE TABELLA XXX");
+            }
+        }
     }
 
     @Transactional

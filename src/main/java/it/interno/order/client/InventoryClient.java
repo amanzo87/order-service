@@ -16,4 +16,5 @@ public interface InventoryClient {
 
     @PostMapping(path = "/fallimento-ordine")
     ResponseEntity<ResponseDto<String>> fallimentoOrdine(@RequestHeader String idUtente, @RequestBody OrderDto orderDto);
+
 }

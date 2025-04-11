@@ -13,4 +13,7 @@ public interface PaymentClient {
     @PostMapping(path = "/order")
     ResponseEntity<ResponseDto<OrderDto>> processaPagamentoOrdine(@RequestBody OrderDto orderDto);
 
+    @PostMapping(path = "/fallimento-ordine")
+    ResponseEntity<ResponseDto<String>> fallimentoOrdine(@RequestBody OrderDto orderDto);
+
 }
